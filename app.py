@@ -5,7 +5,7 @@ from io import BytesIO
 
 st.set_page_config(page_title="REPFAE", layout="centered")
 
-st.image("https://github.com/Chema1987/repfae/commit/fda71037d777aa402ba6e34e2bb3b61ac5615174", width=200)
+st.image("fondoazul aceite.png", width=200)
 st.title("Registro de Turnos - REPFAE")
 
 # Inicializar sesión
