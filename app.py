@@ -8,8 +8,8 @@ import folium
 
 st.set_page_config(page_title="REPFAE", layout="wide")
 
-# Mostrar el logo (cambia la URL por tu imagen real subida a GitHub)
-st.image("fondo azulaceite.png", width=250)
+# Mostrar el logo (cambia esta URL a tu URL de GitHub si tienes otra imagen)
+st.image("https://raw.githubusercontent.com/tuusuario/repfae/main/fondoazul%20aceite.png", width=250)
 
 # Variables de sesión
 if "turnos" not in st.session_state:
@@ -21,7 +21,7 @@ if "lon" not in st.session_state:
 if "modo" not in st.session_state:
     st.session_state["modo"] = None
 
-# Inyectar JavaScript para capturar ubicación automática
+# Capturar ubicación automática mediante navegador
 components.html(
     """
     <script>
@@ -40,13 +40,13 @@ components.html(
     height=0,
 )
 
-# Capturar la posición enviada por el navegador
+# Capturar la posición enviada
 message = st.experimental_get_query_params()
 if "lat" in message and "lon" in message:
     st.session_state["lat"] = float(message["lat"][0])
     st.session_state["lon"] = float(message["lon"][0])
 
-# Login lateral: Estudiante o Profesor
+# Login lateral para seleccionar el rol
 st.sidebar.title("Acceso REPFAE")
 rol = st.sidebar.selectbox("Selecciona tu rol:", ["Estudiante", "Profesor"])
 
@@ -60,7 +60,7 @@ if rol == "Profesor":
 elif rol == "Estudiante":
     st.session_state["modo"] = "estudiante"
 
-# Lógica según rol
+# Lógica según el rol
 if st.session_state["modo"] == "estudiante":
     st.title("📝 Registro de Turno - Estudiante")
 
@@ -74,7 +74,7 @@ if st.session_state["modo"] == "estudiante":
 
     if registrar:
         if not (nombre and correo and profesor):
-            st.warning("⚠️ Completa todos los campos.")
+            st.warning("⚠️ Completa todos los campos obligatorios.")
         elif st.session_state["lat"] is None or st.session_state["lon"] is None:
             st.warning("⚠️ No se ha detectado ubicación todavía. Espera o recarga la página.")
         else:
@@ -102,7 +102,7 @@ elif st.session_state["modo"] == "profesor":
         df = pd.DataFrame(st.session_state["turnos"])
         st.dataframe(df)
 
-        # Mapa de localizaciones en tiempo real
+        # Mapa en tiempo real
         st.subheader("🗺️ Mapa de Localizaciones")
         m = folium.Map(location=[40.4168, -3.7038], zoom_start=6)
 
@@ -129,4 +129,4 @@ elif st.session_state["modo"] == "profesor":
         excel_data = to_excel(df)
         st.download_button("📥 Descargar Excel", data=excel_data, file_name="Turnos_REPFAE.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
-        st.info("Aún no hay turnos registrados.")
+        st.info("ℹ️ Aún no hay turnos registrados.")
