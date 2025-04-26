@@ -2,84 +2,109 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
-import folium
-from streamlit_folium import st_folium
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="REPFAE - Registro de Turnos", layout="wide")
+st.set_page_config(page_title="REPFAE", layout="wide")
 
-st.title("📚 REPFAE - Registro de Turnos de Prácticas")
+# LOGO de la Facultad
+st.image("https://TU_URL_DEL_LOGO", width=250)  # Cambiar por tu URL real
 
-# Inicializar estado
+# Variables de sesión
 if "turnos" not in st.session_state:
     st.session_state["turnos"] = []
+if "modo" not in st.session_state:
+    st.session_state["modo"] = None
 
-# Geolocalización
-st.subheader("Marcaje de Turno")
+# Geolocalización Automática usando JavaScript
+components.html(
+    """
+    <script>
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const streamlitLat = window.parent.document.querySelectorAll('input[data-testid="stTextInput"]')[0];
+            const streamlitLon = window.parent.document.querySelectorAll('input[data-testid="stTextInput"]')[1];
+            streamlitLat.value = lat;
+            streamlitLon.value = lon;
+            streamlitLat.dispatchEvent(new Event('input', { bubbles: true }));
+            streamlitLon.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+        function(error) {
+            alert('⚠️ No se pudo obtener tu ubicación. Acepta el permiso de localización.');
+        }
+    );
+    </script>
+    """,
+    height=0,
+)
 
-nombre = st.text_input("Nombre completo del estudiante")
-correo = st.text_input("Correo UVa")
-fecha = st.date_input("Fecha del turno", value=datetime.now())
-turno = st.selectbox("Tipo de turno", ["Mañana", "Tarde", "Noche", "Guardia"])
-profesor = st.text_input("Nombre completo del profesor responsable")
+# Login Inicial: Elegir rol
+st.sidebar.title("Acceso REPFAE")
+rol = st.sidebar.selectbox("Selecciona tu rol:", ["Estudiante", "Profesor"])
 
-st.write("Activa tu geolocalización para poder registrar el turno.")
-loc_data = st_folium(folium.Map(location=[40.4168, -3.7038], zoom_start=6), width=700, height=500)
-
-registrar = st.button("Registrar turno")
-
-if registrar:
-    if not nombre or not correo or not profesor:
-        st.error("⚠️ Todos los campos son obligatorios.")
-    elif loc_data["last_clicked"] is None:
-        st.error("⚠️ Debes marcar tu ubicación en el mapa para registrar el turno.")
+if rol == "Profesor":
+    password = st.sidebar.text_input("Contraseña:", type="password")
+    if password == "repfae2024":
+        st.session_state["modo"] = "profesor"
     else:
-        # Cálculo de horas por tipo de turno
-        horas_dict = {"Mañana": 7.5, "Tarde": 7.5, "Noche": 10.5, "Guardia": 12}
-        horas = horas_dict[turno]
-        marcaje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        lat = loc_data["last_clicked"]["lat"]
-        lon = loc_data["last_clicked"]["lng"]
-        st.session_state["turnos"].append({
-            "Estudiante": nombre,
-            "Correo UVa": correo,
-            "Fecha": fecha.strftime("%Y-%m-%d"),
-            "Turno": turno,
-            "Horas": horas,
-            "Profesor": profesor,
-            "Marcaje": marcaje,
-            "Latitud": lat,
-            "Longitud": lon
-        })
-        st.success("✅ Turno registrado correctamente.")
+        st.error("⚠️ Contraseña incorrecta para el rol de Profesor.")
+elif rol == "Estudiante":
+    st.session_state["modo"] = "estudiante"
 
-# Mostrar turnos registrados
-if st.session_state["turnos"]:
-    df = pd.DataFrame(st.session_state["turnos"])
-    st.subheader("📄 Turnos Registrados")
-    st.dataframe(df)
+# Lógica de la app
+if st.session_state["modo"] == "estudiante":
+    st.title("📝 Registro de Turno - Estudiante")
 
-    # Crear mapa de estudiantes
-    st.subheader("🗺️ Mapa de Localización de Turnos")
-    m = folium.Map(location=[40.4168, -3.7038], zoom_start=6)
+    latitud = st.text_input("Latitud (capturada automáticamente)", disabled=True)
+    longitud = st.text_input("Longitud (capturada automáticamente)", disabled=True)
 
-    color_dict = {"Mañana": "green", "Tarde": "orange", "Noche": "blue", "Guardia": "red"}
-    for _, row in df.iterrows():
-        folium.Marker(
-            location=[row["Latitud"], row["Longitud"]],
-            popup=f"{row['Estudiante']} - {row['Turno']} - {row['Marcaje']}",
-            icon=folium.Icon(color=color_dict.get(row["Turno"], "gray"))
-        ).add_to(m)
+    nombre = st.text_input("Nombre completo del estudiante")
+    correo = st.text_input("Correo UVa")
+    fecha = st.date_input("Fecha del turno", value=datetime.now())
+    turno = st.selectbox("Tipo de turno", ["Mañana", "Tarde", "Noche", "Guardia"])
+    profesor = st.text_input("Nombre completo del profesor responsable")
 
-    st_folium(m, width=700, height=500)
+    registrar = st.button("Registrar Turno")
 
-    # Botón para descargar Excel
-    def to_excel(df):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, sheet_name="Turnos")
-            df.groupby("Estudiante")["Horas"].sum().reset_index().to_excel(writer, index=False, sheet_name="Resumen_Estudiantes")
-            df.groupby("Profesor")["Horas"].sum().reset_index().to_excel(writer, index=False, sheet_name="Resumen_Profesores")
-        return output.getvalue()
+    if registrar:
+        if not (nombre and correo and profesor and latitud and longitud):
+            st.warning("⚠️ Todos los campos deben estar completos y ubicación activa.")
+        else:
+            horas_dict = {"Mañana": 7.5, "Tarde": 7.5, "Noche": 10.5, "Guardia": 12}
+            horas = horas_dict[turno]
+            marcaje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state["turnos"].append({
+                "Estudiante": nombre,
+                "Correo UVa": correo,
+                "Fecha": fecha.strftime("%Y-%m-%d"),
+                "Turno": turno,
+                "Horas": horas,
+                "Profesor": profesor,
+                "Marcaje": marcaje,
+                "Latitud": latitud,
+                "Longitud": longitud
+            })
+            st.success("✅ Turno registrado correctamente.")
 
-    excel_data = to_excel(df)
-    st.download_button("📥 Descargar Excel con Resumen", data=excel_data, file_name="Registro_REPFAE.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+elif st.session_state["modo"] == "profesor":
+    st.title("👨‍🏫 Panel de Control - Profesor")
+
+    if st.session_state["turnos"]:
+        df = pd.DataFrame(st.session_state["turnos"])
+        st.dataframe(df)
+
+        # Exportación a Excel
+        def to_excel(df):
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+                df.to_excel(writer, index=False, sheet_name="Turnos")
+                df.groupby("Estudiante")["Horas"].sum().reset_index().to_excel(writer, index=False, sheet_name="Resumen_Estudiantes")
+                df.groupby("Profesor")["Horas"].sum().reset_index().to_excel(writer, index=False, sheet_name="Resumen_Profesores")
+            return output.getvalue()
+
+        excel_data = to_excel(df)
+        st.download_button("📥 Descargar Excel", data=excel_data, file_name="Turnos_REPFAE.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    else:
+        st.info("Aún no hay turnos registrados.")
+
