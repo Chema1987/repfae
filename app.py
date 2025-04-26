@@ -41,10 +41,11 @@ components.html(
 )
 
 # Capturar la posición enviada
-message = st.experimental_get_query_params()
+message = st.query_params
 if "lat" in message and "lon" in message:
     st.session_state["lat"] = float(message["lat"][0])
     st.session_state["lon"] = float(message["lon"][0])
+
 
 # Login lateral para seleccionar el rol
 st.sidebar.title("Acceso REPFAE")
