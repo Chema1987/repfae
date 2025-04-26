@@ -9,7 +9,7 @@ import folium
 st.set_page_config(page_title="REPFAE", layout="wide")
 
 # Mostrar el logo (cambia esta URL a tu URL de GitHub si tienes otra imagen)
-st.image("https://raw.githubusercontent.com/tuusuario/repfae/main/fondoazul%20aceite.png", width=250)
+st.image("https://github.com/Chema1987/repfae/blob/fef25af48c6861bb8701dc0501131e571d947aae/fondoazul%20aceite.png", width=250)
 
 # Variables de sesión
 if "turnos" not in st.session_state:
