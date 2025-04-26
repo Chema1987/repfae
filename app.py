@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="REPFAE", layout="wide")
 
 # LOGO de la Facultad
-st.image("https://github.com/Chema1987/repfae/blob/7a9d9dd73d73fa6f1150c7dc5d58c4524901995f/fondoazul%20aceite.png", width=250)  # Cambiar por tu URL real
+st.image("fondoazul aceite.png", width=250)  # Cambiar por tu URL real
 
 # Variables de sesión
 if "turnos" not in st.session_state:
