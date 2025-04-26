@@ -2,21 +2,51 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
+import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 import folium
 
 st.set_page_config(page_title="REPFAE", layout="wide")
 
-# LOGO Facultad (asegúrate de tener tu URL correcta aquí)
-st.image("fondoazul aceite.png", width=250)
+# Mostrar el logo (cambia la URL por tu imagen real subida a GitHub)
+st.image("fondoazulaceite.png", width=250)
 
 # Variables de sesión
 if "turnos" not in st.session_state:
     st.session_state["turnos"] = []
+if "lat" not in st.session_state:
+    st.session_state["lat"] = None
+if "lon" not in st.session_state:
+    st.session_state["lon"] = None
 if "modo" not in st.session_state:
     st.session_state["modo"] = None
 
-# Login Inicial: Elegir rol
+# Inyectar JavaScript para capturar ubicación automática
+components.html(
+    """
+    <script>
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            window.parent.postMessage({ lat: latitude, lon: longitude }, "*");
+        },
+        (error) => {
+            alert('⚠️ No se pudo obtener tu ubicación. Acepta permisos de geolocalización.');
+        }
+    );
+    </script>
+    """,
+    height=0,
+)
+
+# Capturar la posición enviada por el navegador
+message = st.experimental_get_query_params()
+if "lat" in message and "lon" in message:
+    st.session_state["lat"] = float(message["lat"][0])
+    st.session_state["lon"] = float(message["lon"][0])
+
+# Login lateral: Estudiante o Profesor
 st.sidebar.title("Acceso REPFAE")
 rol = st.sidebar.selectbox("Selecciona tu rol:", ["Estudiante", "Profesor"])
 
@@ -30,7 +60,7 @@ if rol == "Profesor":
 elif rol == "Estudiante":
     st.session_state["modo"] = "estudiante"
 
-# FUNCIONALIDAD SEGÚN ROL
+# Lógica según rol
 if st.session_state["modo"] == "estudiante":
     st.title("📝 Registro de Turno - Estudiante")
 
@@ -40,22 +70,14 @@ if st.session_state["modo"] == "estudiante":
     turno = st.selectbox("Tipo de turno", ["Mañana", "Tarde", "Noche", "Guardia"])
     profesor = st.text_input("Nombre completo del profesor responsable")
 
-    st.subheader("🌍 Haz clic en tu ubicación para registrar el turno:")
-    m = folium.Map(location=[40.4168, -3.7038], zoom_start=6)
-    loc_data = st_folium(m, width=700, height=500)
-
     registrar = st.button("Registrar Turno")
 
     if registrar:
         if not (nombre and correo and profesor):
             st.warning("⚠️ Completa todos los campos.")
-        elif loc_data["last_clicked"] is None:
-            st.warning("⚠️ Debes hacer clic en el mapa para registrar la ubicación.")
+        elif st.session_state["lat"] is None or st.session_state["lon"] is None:
+            st.warning("⚠️ No se ha detectado ubicación todavía. Espera o recarga la página.")
         else:
-            coords = loc_data["last_clicked"]
-            latitud = coords["lat"]
-            longitud = coords["lng"]
-
             horas_dict = {"Mañana": 7.5, "Tarde": 7.5, "Noche": 10.5, "Guardia": 12}
             horas = horas_dict[turno]
             marcaje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -68,8 +90,8 @@ if st.session_state["modo"] == "estudiante":
                 "Horas": horas,
                 "Profesor": profesor,
                 "Marcaje": marcaje,
-                "Latitud": latitud,
-                "Longitud": longitud
+                "Latitud": st.session_state["lat"],
+                "Longitud": st.session_state["lon"]
             })
             st.success("✅ Turno registrado correctamente.")
 
@@ -80,8 +102,8 @@ elif st.session_state["modo"] == "profesor":
         df = pd.DataFrame(st.session_state["turnos"])
         st.dataframe(df)
 
-        # Mostrar Mapa de ubicaciones
-        st.subheader("🗺️ Mapa de localizaciones")
+        # Mapa de localizaciones en tiempo real
+        st.subheader("🗺️ Mapa de Localizaciones")
         m = folium.Map(location=[40.4168, -3.7038], zoom_start=6)
 
         color_dict = {"Mañana": "green", "Tarde": "orange", "Noche": "blue", "Guardia": "red"}
@@ -95,7 +117,7 @@ elif st.session_state["modo"] == "profesor":
 
         st_folium(m, width=700, height=500)
 
-        # Exportar datos a Excel
+        # Exportar Excel
         def to_excel(df):
             output = BytesIO()
             with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
